@@ -24,11 +24,15 @@ say()  { echo "${GREEN}==>${OFF} ${BOLD}$*${OFF}"; }
 warn() { echo "${YELLOW}!${OFF} $*"; }
 die()  { echo "${RED}Ошибка:${OFF} $*" >&2; exit 1; }
 
+# /dev/tty существует всегда, но открыть его получается не везде (cron, CI,
+# docker без -t). Проверяем именно возможность открыть.
+have_tty() { { : >/dev/tty; } 2>/dev/null; }
+
 # Вопросы задаём терминалу напрямую: при запуске через `curl | bash`
 # обычный stdin занят самим скриптом, и read сработал бы вхолостую.
 ask() {
     local prompt="$1" varname="$2" silent="${3:-}" answer=""
-    [ -e /dev/tty ] || die "Нет терминала для ввода. Запусти: DISCORD_TOKEN=токен bash install.sh"
+    have_tty || die "Нет терминала для ввода. Запусти: DISCORD_TOKEN=токен bash install.sh"
     if [ -n "$silent" ]; then
         read -rsp "$prompt" answer < /dev/tty; echo
     else
@@ -172,7 +176,7 @@ else
     [ -n "$TOKEN" ] || die "Пустой токен."
 
     GUILD=""
-    if [ -z "${DEV_GUILD_ID:-}" ] && [ -e /dev/tty ]; then
+    if [ -z "${DEV_GUILD_ID:-}" ] && have_tty; then
         ask "ID сервера для мгновенных слэш-команд (Enter — пропустить): " GUILD
     else
         GUILD="${DEV_GUILD_ID:-}"
